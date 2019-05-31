@@ -1,8 +1,6 @@
 package udpout
 
 import (
-	"fmt"
-	"github.com/elastic/beats/libbeat/common/file"
 	"github.com/elastic/beats/libbeat/outputs/codec"
 )
 
@@ -19,9 +17,5 @@ var (
 )
 
 func (c *config) Validate() error {
-	if c.NumberOfFiles < 2 || c.NumberOfFiles > file.MaxBackupsLimit {
-		return fmt.Errorf("The number_of_files to keep should be between 2 and %v",
-			file.MaxBackupsLimit)
-	}
 	return nil
 }
