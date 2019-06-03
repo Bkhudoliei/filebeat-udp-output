@@ -4,18 +4,18 @@ import (
 	"github.com/elastic/beats/libbeat/outputs/codec"
 )
 
-type config struct {
+type udpoutConfig struct {
 	Host string `config:"host"`
 	Port int    `config:"port"`
 	Codec codec.Config `config:"codec"`
 }
 
 var (
-	defaultConfig = config{
+	defaultConfig = udpoutConfig{
 		Port: 5556,
 	}
 )
 
-func (c *config) Validate() error {
+func (c *udpoutConfig) Validate() error {
 	return nil
 }

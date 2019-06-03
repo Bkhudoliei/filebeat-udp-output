@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	outputs.RegisterType("udp", makeUdpout)
+	outputs.RegisterType("console", makeUdpout)
 }
 
 type udpOutput struct {
@@ -50,13 +50,13 @@ func makeUdpout(
 	return outputs.Success(-1, 0, uo)
 }
 
-func (out *udpOutput) init(beat beat.Info, c config) error {
-	
+func (out *udpOutput) init(beat beat.Info, c udpoutConfig) error {
+
 	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	logp.Info("UDP server address: %v", address)
 
 	var err error
-	
+
 	out.codec, err = codec.CreateEncoder(beat, c.Codec)
 	if err != nil {
 		return err
@@ -66,9 +66,12 @@ func (out *udpOutput) init(beat beat.Info, c config) error {
 	if err != nil {
 		return err
 	}
-
+	conn, err := net.DialUDP("udp", nil,  server)
+	if err != nil {
+		return err
+	}
 	out.remoteAddress = server
-
+	out.connection = conn
 	logp.Info("Initialized udp output. "+
 		"Server address=%v", address)
 
@@ -92,7 +95,6 @@ func (out *udpOutput) Publish(
 	dropped := 0
 	for i := range events {
 		event := &events[i]
-
 		serializedEvent, err := out.codec.Encode(out.beat.Beat, &event.Content)
 		if err != nil {
 			if event.Guaranteed() {
@@ -105,8 +107,7 @@ func (out *udpOutput) Publish(
 			dropped++
 			continue
 		}
-
-		_, err = out.connection.WriteToUDP([]byte(serializedEvent), out.remoteAddress)
+		_, err = out.connection.Write([]byte(serializedEvent))
 		if err != nil {
 			st.WriteError(err)
 			if event.Guaranteed() {
