@@ -12,15 +12,15 @@ import (
 )
 
 func init() {
-	outputs.RegisterType("console", makeUdpout)
+	outputs.RegisterType("udp", makeUdpout)
 }
 
 type udpOutput struct {
-	connection *net.UDPConn
+	connection    *net.UDPConn
 	remoteAddress *net.UDPAddr
-	beat     beat.Info
-	observer outputs.Observer
-	codec    codec.Codec
+	beat          beat.Info
+	observer      outputs.Observer
+	codec         codec.Codec
 }
 
 // makeUdpout instantiates a new file output instance.
@@ -66,7 +66,7 @@ func (out *udpOutput) init(beat beat.Info, c udpoutConfig) error {
 	if err != nil {
 		return err
 	}
-	conn, err := net.DialUDP("udp", nil,  server)
+	conn, err := net.DialUDP("udp", nil, server)
 	if err != nil {
 		return err
 	}
