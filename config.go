@@ -5,14 +5,16 @@ import (
 )
 
 type udpoutConfig struct {
-	Host string `config:"host"`
-	Port int    `config:"port"`
-	Codec codec.Config `config:"codec"`
+	Host      string       `config:"host"`
+	Port      int          `config:"port"`
+	Codec     codec.Config `config:"codec"`
+	BulkDelay int          `config:"bulkdelay"`
 }
 
 var (
 	defaultConfig = udpoutConfig{
-		Port: 5556,
+		Port:      5556,
+		BulkDelay: 0,
 	}
 )
 

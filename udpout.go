@@ -9,6 +9,7 @@ import (
 	"github.com/elastic/beats/libbeat/outputs/codec"
 	"github.com/elastic/beats/libbeat/publisher"
 	"net"
+	"time"
 )
 
 func init() {
@@ -21,6 +22,7 @@ type udpOutput struct {
 	beat          beat.Info
 	observer      outputs.Observer
 	codec         codec.Codec
+	bulkDelay     int
 }
 
 // makeUdpout instantiates a new file output instance.
@@ -56,7 +58,7 @@ func (out *udpOutput) init(beat beat.Info, c udpoutConfig) error {
 	logp.Info("UDP server address: %v", address)
 
 	var err error
-
+	out.bulkDelay = c.BulkDelay
 	out.codec, err = codec.CreateEncoder(beat, c.Codec)
 	if err != nil {
 		return err
@@ -66,12 +68,7 @@ func (out *udpOutput) init(beat beat.Info, c udpoutConfig) error {
 	if err != nil {
 		return err
 	}
-	conn, err := net.DialUDP("udp", nil, server)
-	if err != nil {
-		return err
-	}
 	out.remoteAddress = server
-	out.connection = conn
 	logp.Info("Initialized udp output. "+
 		"Server address=%v", address)
 
@@ -80,6 +77,7 @@ func (out *udpOutput) init(beat beat.Info, c udpoutConfig) error {
 
 // Implement Outputer
 func (out *udpOutput) Close() error {
+	logp.Info("UDP output connection %v close.", out.connection.LocalAddr().String())
 	return out.connection.Close()
 }
 
@@ -93,6 +91,15 @@ func (out *udpOutput) Publish(
 	st.NewBatch(len(events))
 
 	dropped := 0
+	bulkSize := 0
+
+	conn, err := net.DialUDP("udp", nil, out.remoteAddress)
+	if err != nil {
+		return err
+	}
+	out.connection = conn
+	defer out.Close()
+
 	for i := range events {
 		event := &events[i]
 		serializedEvent, err := out.codec.Encode(out.beat.Beat, &event.Content)
@@ -107,7 +114,7 @@ func (out *udpOutput) Publish(
 			dropped++
 			continue
 		}
-		_, err = out.connection.Write([]byte(serializedEvent))
+		_, err = out.connection.Write([]byte(string(serializedEvent) + "\n"))
 		if err != nil {
 			st.WriteError(err)
 			if event.Guaranteed() {
@@ -118,13 +125,15 @@ func (out *udpOutput) Publish(
 			dropped++
 			continue
 		}
-
+		bulkSize += len(serializedEvent) + 1
 		st.WriteBytes(len(serializedEvent) + 1)
 	}
 
 	st.Dropped(dropped)
 	st.Acked(len(events) - dropped)
 
+	logp.Info("Processed events: %v. Dropped events: %v. Bulk size: %v", len(events)-dropped, dropped, bulkSize)
+	time.Sleep(time.Duration(out.bulkDelay) * time.Millisecond)
 	return nil
 }
 
